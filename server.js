@@ -44,4 +44,4 @@ app.get('/health', (req, res) => res.json({
   key_set: !!process.env.OPENROUTER_API_KEY 
 }));
 
-app.listen(process.env.PORT || 3000, () => console.log('Proxy running with OpenRouter'));
+app.listen(process.env.PORT || 3000, () => console.log('Proxy v3 running'));
