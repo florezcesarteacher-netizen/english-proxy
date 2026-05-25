@@ -5,43 +5,60 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const FREE_MODELS = [
+  'meta-llama/llama-3.3-8b-instruct:free',
+  'meta-llama/llama-3.1-8b-instruct:free',
+  'mistralai/mistral-7b-instruct:free',
+  'google/gemma-3-4b-it:free',
+  'qwen/qwen-2.5-7b-instruct:free'
+];
+
+async function tryModel(model, system, messages) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'HTTP-Referer': 'https://netlify.app',
+      'X-Title': 'English Exercise Generator'
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        ...(system ? [{ role: 'system', content: system }] : []),
+        ...messages
+      ],
+      max_tokens: 2000
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || `${model} failed`);
+  const text = data.choices?.[0]?.message?.content || '';
+  if (!text) throw new Error('Empty response');
+  return text;
+}
+
 app.post('/api/generate', async (req, res) => {
-  try {
-    const { system, messages } = req.body;
-
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://english-exercise-generator.netlify.app',
-        'X-Title': 'English Exercise Generator'
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3.3-8b-instruct:free',
-        messages: [
-          ...(system ? [{ role: 'system', content: system }] : []),
-          ...messages
-        ],
-        max_tokens: 2000
-      })
-    });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || 'OpenRouter error');
-
-    const text = data.choices?.[0]?.message?.content || '';
-    res.json({ content: [{ type: 'text', text }] });
-
-  } catch (err) {
-    console.error('Error:', err.message);
-    res.status(500).json({ error: { message: err.message } });
+  const { system, messages } = req.body;
+  let lastError = '';
+  for (const model of FREE_MODELS) {
+    try {
+      console.log(`Trying model: ${model}`);
+      const text = await tryModel(model, system, messages);
+      console.log(`Success with: ${model}`);
+      return res.json({ content: [{ type: 'text', text }] });
+    } catch (err) {
+      lastError = err.message;
+      console.log(`Failed ${model}: ${err.message}`);
+    }
   }
+  res.status(500).json({ error: { message: lastError } });
 });
 
-app.get('/health', (req, res) => res.json({ 
-  status: 'ok', 
-  key_set: !!process.env.OPENROUTER_API_KEY 
+app.get('/health', (req, res) => res.json({
+  status: 'ok',
+  key_set: !!process.env.OPENROUTER_API_KEY,
+  models: FREE_MODELS
 }));
 
-app.listen(process.env.PORT || 3000, () => console.log('Proxy v3 running'));
+app.listen(process.env.PORT || 3000, () => console.log('Proxy running'));
