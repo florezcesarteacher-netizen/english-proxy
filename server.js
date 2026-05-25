@@ -6,11 +6,9 @@ app.use(cors());
 app.use(express.json());
 
 const FREE_MODELS = [
-  'meta-llama/llama-3.3-8b-instruct:free',
-  'meta-llama/llama-3.1-8b-instruct:free',
-  'mistralai/mistral-7b-instruct:free',
-  'google/gemma-3-4b-it:free',
-  'qwen/qwen-2.5-7b-instruct:free'
+  'google/gemma-4-26b-a4b-it:free',
+  'deepseek/deepseek-v4-flash:free',
+  'openrouter/owl-alpha'
 ];
 
 async function tryModel(model, system, messages) {
